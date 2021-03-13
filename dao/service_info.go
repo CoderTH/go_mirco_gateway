@@ -35,15 +35,22 @@ func (t *ServiceInfo)PageList(c *gin.Context,tx *gorm.DB,param *dto.ServiceListI
 	if param.Info!="" {
 		query =query.Where("(service_name like ? or service_desc like ?)","%"+param.Info+"%","%"+param.Info+"%")
 	}
-	if err := query.Limit(param.PageSize).Offset(offset).Find(&list).Error;err!=nil&&err!=gorm.ErrRecordNotFound{
+	if err := query.Limit(param.PageSize).Offset(offset).Order("id desc").Find(&list).Error;err!=nil&&err!=gorm.ErrRecordNotFound{
 		return nil ,0,err
 	}
-	query.Limit(param.PageSize).Offset(offset).Find(&list).Count(&total)
+	query.Limit(param.PageSize).Offset(offset).Order("id desc").Find(&list).Count(&total)
 	return list,total,nil
 
 }
 
 func (t *ServiceInfo) ServiceDetail(c *gin.Context, tx *gorm.DB, search *ServiceInfo) (*ServiceDetail, error) {
+	if search.ServiceName == "" {
+			info,err :=t.Find(c,tx,search)
+		if err != nil {
+			return nil, err
+		}
+			search = info
+	}
 	httpRule := &HttpRule{ServiceID: search.Id}
 	httpRule,err := httpRule.Find(c, tx, httpRule)
 	if err != nil &&err!=gorm.ErrRecordNotFound{
@@ -84,7 +91,7 @@ func (t *ServiceInfo) ServiceDetail(c *gin.Context, tx *gorm.DB, search *Service
 	return detail,nil
 }
 
-func (t *ServiceInfo) Find(c *gin.Context, tx *gorm.DB, search *Admin) (*ServiceInfo, error) {
+func (t *ServiceInfo) Find(c *gin.Context, tx *gorm.DB, search *ServiceInfo) (*ServiceInfo, error) {
 	out := &ServiceInfo{}
 	err := tx.SetCtx(public.GetGinTraceContext(c)).Where(search).Find(out).Error
 	if err != nil {
